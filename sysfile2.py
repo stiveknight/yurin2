@@ -11,7 +11,7 @@ def md5(path):
             for chunk in iter(lambda: f.read(4096), b""):
                 hash_md5.update(chunk)
         return hash_md5.hexdigest()
-    except PermissionError:
+    except:
         return 0
 
 
@@ -39,9 +39,24 @@ class Sysfile:
         return path.split('\\')[-1]
 
     def comp(self, other):
-        if self.hash == other['hash'] and self.size == other['f_size'] and self.mod == other['last_modification'] and self.creation == other['creation'] and self.open == other['last_open']:
-            return True
-        return False
+        name = self.abspath
+        args = ['У файла {} были изменены параметры:'.format(name)]
+        if self.hash != other['hash']:
+            args.append('hash,')
+        if self.size != other['f_size']:
+            args.append('size,')
+        if self.mod != other['last_modification']:
+            args.append('modification date,')
+        if self.creation != other['creation']:
+            args.append('creation date,')
+        if self.open != other['last_open']:
+            args.append('last open date,')
+
+        if len(args) > 1:
+            for item in args:
+                print(item, end=' ')
+            print()
+
 
     def serialization(self):
         # with open("nastia.json", 'r') as file:
