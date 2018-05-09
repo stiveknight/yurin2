@@ -1,16 +1,19 @@
 import json
 import os
-from sysfile2 import Sysfile
+from sysfile import Sysfile
 import properties
+from utils import disable_file_system_redirection
+
+js_c = None
 
 
-def open_file():
-    with open("nastia.json", 'r') as file:
+def open_file(file):
+    with open(file, 'r') as file:
         properties.js = json.load(file)
 
 
-def close_file():
-    with open('nastia.json', 'w') as file:
+def close_file(file):
+    with open(file, 'w') as file:
         json.dump(properties.js, file)
 
 
@@ -29,21 +32,22 @@ def dfs(path):
                 continue
 
 
-def create_default_json(path):
+def create_default_json(path, dump):
     w = {}
     ww = path.split('\\')
     for idx, name in enumerate(path.split('\\')[::-1]):
         p = []
         for i in range(len(ww) - idx):
             p.append(ww[i])
-        for idx in range(len(p)):
+        for i in range(len(p)):
             if len(p) == 1:
-                p[idx] += '\\'
+                p[i] += '\\'
         n_path = '\\'.join(map(str, p))
         s = Sysfile(n_path)
-        w = {name: {"isdir": s.isdir, "f_size": s.size, "hash": s.hash, "last_modification": s.mod, "creation": s.creation, "last_open": s.open,
+        w = {name: {"isdir": s.isdir, "f_size": s.size, "hash": s.hash, "last_modification": s.mod,
+                    "creation": s.creation, "last_open": s.open,
                     "subfiles": w}}
-    with open("nastia.json", 'w') as file:
+    with open(dump, 'w') as file:
         file.write(json.dumps(w))
 
 
@@ -51,11 +55,10 @@ def compare(path):
     if os.path.isfile(path):
         pass
     elif os.path.isdir(path):
-        on_disk = []
         try:
             on_disk = os.listdir(path)
         except PermissionError:
-            print("Ошибка доступа к {} ".format(path))
+            print("Permission error to file: {} ".format(path))
             return
         js = js_c
         for name in path.split('\\'):
@@ -63,35 +66,39 @@ def compare(path):
         on_dump = js
 
         for name in on_disk:
-            if not name in on_dump:
+            if not (name in on_dump):
                 print('Появился новый файл: ' + path + '\\' + name)
             else:
                 s = Sysfile(path + '\\' + name)
                 s.comp(on_dump[name])
-                # print('Файл был изменен: ' + path + '\\' + name)
                 try:
                     compare(path + '\\' + name)
                 except:
                     continue
 
         for name in on_dump:
-            if not name in on_disk:
+            if not (name in on_disk):
                 print('Был удален файл: ' + path + '\\' + name)
 
 
 def main(path):
-    # обход католга и дамп слепка каталога в файл
-    # и возможно сравнение с предыдущим слепком
-    if input('Режим создания слепка [y/n]') == 'y':
-        create_default_json(path)
-        open_file()
-        dfs(path)
-        close_file()
-    else:
-        compare(properties.path_for_compare)
+    while True:
+        mod = input('Создание слепка или сравнение [1/2]: ')
+        dump = input('Введите название слепка: ')
+        if mod == '1':
+            create_default_json(path, dump)
+            open_file(dump)
+            with disable_file_system_redirection():
+                dfs(path)
+            close_file(dump)
+            break
+        elif mod == '2':
+            with open(dump, 'r') as file:
+                global js_c
+                js_c = json.load(file)
+            with disable_file_system_redirection():
+                compare(properties.path_for_compare)
+            break
 
-
-with open('nastia.json', 'r') as file:
-    js_c = json.load(file)
 
 main(properties.path)
